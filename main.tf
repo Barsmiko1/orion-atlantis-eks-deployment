@@ -1,0 +1,150 @@
+provider "aws" {
+  region = var.aws_region
+}
+
+provider "tls" {}
+
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+    command     = "aws"
+  }
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+      command     = "aws"
+    }
+  }
+}
+
+module "vpc" {
+  source = "./modules/vpc"
+
+  vpc_name       = var.vpc_name
+  vpc_cidr       = var.vpc_cidr
+  azs            = var.azs
+  private_subnets = var.private_subnets
+  public_subnets  = var.public_subnets
+}
+
+module "eks" {
+  source = "./modules/eks"
+
+  cluster_name    = var.cluster_name
+  vpc_id          = module.vpc.vpc_id
+  subnet_ids      = module.vpc.private_subnet_ids
+  min_size        = var.min_size
+  max_size        = var.max_size
+  desired_size    = var.desired_size
+  instance_types  = var.instance_types
+}
+
+module "iam_roles" {
+  source = "./modules/iam"
+
+  cluster_name = var.cluster_name
+}
+
+module "atlantis" {
+  source = "./modules/atlantis"
+
+  cluster_name            = var.cluster_name
+  atlantis_github_user    = var.atlantis_github_user
+  atlantis_github_token   = var.atlantis_github_token
+  atlantis_repo_allowlist = var.atlantis_repo_allowlist
+  atlantis_webhook_secret = var.atlantis_webhook_secret
+  
+  depends_on = [
+    kubernetes_storage_class.ebs
+  ]
+}
+
+# Install the EBS CSI Driver add-on
+resource "aws_eks_addon" "ebs_csi_driver" {
+  cluster_name             = module.eks.cluster_name
+  addon_name               = "aws-ebs-csi-driver"
+  # Removed the version specification to use the latest compatible version
+  service_account_role_arn = aws_iam_role.ebs_csi_driver.arn
+  
+  depends_on = [
+    aws_iam_role_policy_attachment.ebs_csi_driver
+  ]
+}
+
+# Create IAM role for EBS CSI Driver
+resource "aws_iam_role" "ebs_csi_driver" {
+  name = "${var.cluster_name}-ebs-csi-driver"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}"
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:sub": "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+          }
+        }
+      }
+    ]
+  })
+}
+
+# Attach the required policy to the IAM role
+resource "aws_iam_role_policy_attachment" "ebs_csi_driver" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  role       = aws_iam_role.ebs_csi_driver.name
+}
+
+# Create a Kubernetes storage class for EBS
+resource "kubernetes_storage_class" "ebs" {
+  metadata {
+    name = "ebs-sc"
+  }
+  
+  storage_provisioner = "ebs.csi.aws.com"
+  reclaim_policy      = "Retain"
+  volume_binding_mode = "WaitForFirstConsumer"
+  
+  parameters = {
+    type    = "gp3"
+    fsType  = "ext4"
+  }
+  
+  depends_on = [
+    aws_eks_addon.ebs_csi_driver
+  ]
+}
+
+# Set the storage class as default
+resource "kubernetes_annotations" "ebs_default" {
+  api_version = "storage.k8s.io/v1"
+  kind        = "StorageClass"
+  
+  metadata {
+    name = kubernetes_storage_class.ebs.metadata[0].name
+  }
+  
+  annotations = {
+    "storageclass.kubernetes.io/is-default-class" = "true"
+  }
+  
+  depends_on = [
+    kubernetes_storage_class.ebs
+  ]
+}
+
+data "aws_caller_identity" "current" {}
