@@ -57,11 +57,13 @@ This deployment creates:
    ```console
    git clone https://github.com/Barsmiko1/orion-atlantis-eks-deployment.git
    cd orion-atlantis-eks-deployment
+   ```
 
 
 2. Create a `terraform.tfvars` file with the desired configuration that would contain your github credentials and webhook url etc:
    ```console
    vim terraform.tfvars
+   ```
 
 
 3. Edit the `terraform.tfvars` file to set your GitHub credentials and other variables:
@@ -70,40 +72,48 @@ This deployment creates:
    atlantis_github_token = "your-github-token"
    atlantis_repo_allowlist = "github.com/your-username/*"
    atlantis_webhook_secret = "your-webhook-secret"
+   ```
    
 
 4. Initialize Terraform:
    ```console
    terraform init
+   ```
    
 
 5. Plan the deployment:
    ```console
    terraform plan
+   ```
    
 
 6. Apply the configuration:
    ```console
    terraform apply
+   ```
    
 
 7. Configure kubectl to connect to your EKS cluster:
    ```console
    aws eks update-kubeconfig --region us-west-2 --name atlantis-cluster
+   ```
    
 
 8. Verify the Atlantis deployment:
    ```console
    kubectl get pods -n atlantis
+   ```
    
 
 9. Get the Atlantis URL:
    ```console
    terraform output atlantis_url
+   ```
 
 10. Error management durring pod deployment.
 if you receive an error during the pod creation, describe the pod and know what the error could be, most likely 
 it would be related to the volume configuration from the helm chart.
+
 ```console
 aws eks update-kubeconfig --region us-west-2 --name atlantis-cluster
 kubectl get namespace
@@ -116,6 +126,7 @@ terraform apply
 helm show values runatlantis/atlantis > atlantis-values.yaml
 cat atlantis-values.yaml
 cat atlantis-values.yaml | grep -A 20 "storage\|persistence\|data"
+```
    
 
 ## Setting up GitHub Webhook
@@ -150,11 +161,12 @@ grep "atlantis_webhook_secret" terraform.tfvars
 To assume the eks-admin role:
 ```console
 aws eks update-kubeconfig --region us-west-2 --name atlantis-cluster --role-arn $(terraform output -raw eks_admin_role_arn)
-
+```
 
 To assume the eks-readonly role:
 ```console
 aws eks update-kubeconfig --region us-west-2 --name atlantis-cluster --role-arn $(terraform output -raw eks_readonly_role_arn)
+```
 
 ## Cleanup
 
@@ -162,3 +174,4 @@ To destroy all resources created by this configuration:
 
 ```console
 terraform destroy
+```
