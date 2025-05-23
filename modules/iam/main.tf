@@ -110,4 +110,92 @@ resource "kubernetes_cluster_role_binding" "readonly" {
   }
 }
 
+# IAM role for Atlantis to assume via IRSA
+resource "aws_iam_role" "atlantis" {
+  name = "${var.cluster_name}-atlantis-role"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(var.cluster_oidc_issuer_url, "https://", "")}"
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "${replace(var.cluster_oidc_issuer_url, "https://", "")}:sub": "system:serviceaccount:atlantis:atlantis"
+            "${replace(var.cluster_oidc_issuer_url, "https://", "")}:aud": "sts.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+  
+  tags = {
+    Name = "${var.cluster_name}-atlantis-role"
+  }
+}
+
+# IAM policy for Atlantis with necessary permissions
+resource "aws_iam_policy" "atlantis" {
+  name        = "${var.cluster_name}-atlantis-policy"
+  description = "IAM policy for Atlantis to manage AWS resources"
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          # EC2 permissions for VPC, subnets, security groups, etc.
+          "ec2:*",
+          
+          # EKS permissions
+          "eks:*",
+          
+          # IAM permissions (be careful with these in production)
+          "iam:*",
+          
+          # S3 permissions for Terraform state (if using S3 backend)
+          "s3:*",
+          
+          # DynamoDB permissions for state locking (if using DynamoDB)
+          "dynamodb:*",
+          
+          # CloudFormation permissions (EKS uses CloudFormation)
+          "cloudformation:*",
+          
+          # Auto Scaling permissions
+          "autoscaling:*",
+          
+          # Application Load Balancer permissions
+          "elasticloadbalancing:*",
+          
+          # Route53 permissions (if managing DNS)
+          "route53:*",
+          
+          # CloudWatch permissions
+          "logs:*",
+          "cloudwatch:*",
+          
+          # KMS permissions (for encryption)
+          "kms:*",
+          
+          # SSM permissions (for parameter store)
+          "ssm:*"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach the policy to the role
+resource "aws_iam_role_policy_attachment" "atlantis" {
+  role       = aws_iam_role.atlantis.name
+  policy_arn = aws_iam_policy.atlantis.arn
+}
+
 data "aws_caller_identity" "current" {}

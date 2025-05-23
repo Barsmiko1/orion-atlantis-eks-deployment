@@ -24,3 +24,13 @@ variable "atlantis_webhook_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "atlantis_iam_role_arn" {
+  description = "IAM role ARN for Atlantis service account"
+  type        = string
+}
+
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+}

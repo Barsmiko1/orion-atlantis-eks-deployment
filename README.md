@@ -149,12 +149,42 @@ cat atlantis-values.yaml | grep -A 20 "storage\|persistence\|data"
 4. Atlantis should automatically comment on the PR with the plan output
 5. Comment "atlantis apply" to apply the changes
 
-##webhook error configuration management
+## webhook error configuration management
 if you get a signature verification failed error, then you would need to check the content of the signature
 compare it with the actual value of the tfvars file against the registered signature on guthub.
 ```console
 grep "atlantis_webhook_secret" terraform.tfvars
 ```
+# GitHub Token Permission Issue
+```console
+kubectl logs -n atlantis -l app=atlantis -f
+403 Resource not accessible by personal access token
+```
+Set appropriate permissions:
+
+- **Repository access**: Select "Only select repositories" and choose your repository
+- **Repository permissions**:
+
+- **Contents**: Read and write
+- **Pull requests**: Read and write
+- **Commit statuses**: Read and write
+- **Metadata**: Read-only
+- **Webhooks**: Read and write (if you want Atlantis to manage webhooks)
+
+# AWS Credentials Issue
+```console
+kubectl logs -n atlantis -l app=atlantis -f
+
+Error: No valid credential sources found
+```
+**Create a Kubernetes secret with AWS credentials**:
+```console
+kubectl create secret generic aws-credentials \
+  --namespace atlantis \
+  --from-literal=AWS_ACCESS_KEY_ID=your-access-key \
+  --from-literal=AWS_SECRET_ACCESS_KEY=your-secret-key \
+  --from-literal=AWS_REGION=us-west-2
+  ```
 
 ## IAM Role Usage
 
