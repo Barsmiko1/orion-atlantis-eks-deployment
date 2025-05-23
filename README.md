@@ -155,6 +155,7 @@ if you get a signature verification failed error, then you would need to check t
 compare it with the actual value of the tfvars file against the registered signature on guthub.
 ```console
 grep "atlantis_webhook_secret" terraform.tfvars
+```
 
 ## IAM Role Usage
 
