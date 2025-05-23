@@ -1,5 +1,19 @@
-resource "aws_iam_role" "eks_admin" {
-  name = "${var.cluster_name}-eks-admin"
+resource "aws_eks_cluster" "this" {
+  name     = var.cluster_name
+  role_arn = aws_iam_role.cluster.arn
+  
+  vpc_config {
+    subnet_ids = var.subnet_ids
+  }
+  
+  depends_on = [
+    aws_iam_role_policy_attachment.cluster_AmazonEKSClusterPolicy,
+    aws_iam_role_policy_attachment.cluster_AmazonEKSVPCResourceController,
+  ]
+}
+
+resource "aws_iam_role" "cluster" {
+  name = "${var.cluster_name}-cluster-role"
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -8,31 +22,46 @@ resource "aws_iam_role" "eks_admin" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+          Service = "eks.amazonaws.com"
         }
       },
     ]
   })
 }
 
-resource "aws_iam_role_policy" "eks_admin" {
-  name = "${var.cluster_name}-eks-admin-policy"
-  role = aws_iam_role.eks_admin.id
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action   = "eks:*"
-        Effect   = "Allow"
-        Resource = "*"
-      },
-    ]
-  })
+resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSClusterPolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  role       = aws_iam_role.cluster.name
 }
 
-resource "aws_iam_role" "eks_readonly" {
-  name = "${var.cluster_name}-eks-readonly"
+resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSVPCResourceController" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSVPCResourceController"
+  role       = aws_iam_role.cluster.name
+}
+
+resource "aws_eks_node_group" "this" {
+  cluster_name    = aws_eks_cluster.this.name
+  node_group_name = "${var.cluster_name}-node-group"
+  node_role_arn   = aws_iam_role.node.arn
+  subnet_ids      = var.subnet_ids
+  
+  scaling_config {
+    desired_size = var.desired_size
+    max_size     = var.max_size
+    min_size     = var.min_size
+  }
+  
+  instance_types = var.instance_types
+  
+  depends_on = [
+    aws_iam_role_policy_attachment.node_AmazonEKSWorkerNodePolicy,
+    aws_iam_role_policy_attachment.node_AmazonEKS_CNI_Policy,
+    aws_iam_role_policy_attachment.node_AmazonEC2ContainerRegistryReadOnly,
+  ]
+}
+
+resource "aws_iam_role" "node" {
+  name = "${var.cluster_name}-node-role"
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -41,161 +70,35 @@ resource "aws_iam_role" "eks_readonly" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+          Service = "ec2.amazonaws.com"
         }
       },
     ]
   })
 }
 
-resource "aws_iam_role_policy" "eks_readonly" {
-  name = "${var.cluster_name}-eks-readonly-policy"
-  role = aws_iam_role.eks_readonly.id
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "eks:DescribeCluster",
-          "eks:ListClusters",
-          "eks:DescribeNodegroup",
-          "eks:ListNodegroups",
-          "eks:ListFargateProfiles",
-          "eks:ListAddons",
-          "eks:DescribeAddon"
-        ]
-        Effect   = "Allow"
-        Resource = "*"
-      },
-    ]
-  })
+resource "aws_iam_role_policy_attachment" "node_AmazonEKSWorkerNodePolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+  role       = aws_iam_role.node.name
 }
 
-# Create Kubernetes RBAC configuration for the admin role
-resource "kubernetes_cluster_role_binding" "admin" {
-  metadata {
-    name = "eks-admin-binding"
-  }
-  
-  role_ref {
-    api_group = "rbac.authorization.k8s.io"
-    kind      = "ClusterRole"
-    name      = "cluster-admin"
-  }
-  
-  subject {
-    kind      = "User"
-    name      = "eks-admin"
-    api_group = "rbac.authorization.k8s.io"
-  }
+resource "aws_iam_role_policy_attachment" "node_AmazonEKS_CNI_Policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.node.name
 }
 
-# Create Kubernetes RBAC configuration for the read-only role
-resource "kubernetes_cluster_role_binding" "readonly" {
-  metadata {
-    name = "eks-readonly-binding"
-  }
-  
-  role_ref {
-    api_group = "rbac.authorization.k8s.io"
-    kind      = "ClusterRole"
-    name      = "view"
-  }
-  
-  subject {
-    kind      = "User"
-    name      = "eks-readonly"
-    api_group = "rbac.authorization.k8s.io"
-  }
+resource "aws_iam_role_policy_attachment" "node_AmazonEC2ContainerRegistryReadOnly" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.node.name
 }
 
-# IAM role for Atlantis to assume via IRSA
-resource "aws_iam_role" "atlantis" {
-  name = "${var.cluster_name}-atlantis-role"
-  
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(var.cluster_oidc_issuer_url, "https://", "")}"
-        }
-        Action = "sts:AssumeRoleWithWebIdentity"
-        Condition = {
-          StringEquals = {
-            "${replace(var.cluster_oidc_issuer_url, "https://", "")}:sub": "system:serviceaccount:atlantis:atlantis"
-            "${replace(var.cluster_oidc_issuer_url, "https://", "")}:aud": "sts.amazonaws.com"
-          }
-        }
-      }
-    ]
-  })
-  
-  tags = {
-    Name = "${var.cluster_name}-atlantis-role"
-  }
+// Add OIDC provider for the EKS cluster
+resource "aws_iam_openid_connect_provider" "eks" {
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
+  url             = aws_eks_cluster.this.identity[0].oidc[0].issuer
 }
 
-# IAM policy for Atlantis with necessary permissions
-resource "aws_iam_policy" "atlantis" {
-  name        = "${var.cluster_name}-atlantis-policy"
-  description = "IAM policy for Atlantis to manage AWS resources"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          # EC2 permissions for VPC, subnets, security groups, etc.
-          "ec2:*",
-          
-          # EKS permissions
-          "eks:*",
-          
-          # IAM permissions (be careful with these in production)
-          "iam:*",
-          
-          # S3 permissions for Terraform state (if using S3 backend)
-          "s3:*",
-          
-          # DynamoDB permissions for state locking (if using DynamoDB)
-          "dynamodb:*",
-          
-          # CloudFormation permissions (EKS uses CloudFormation)
-          "cloudformation:*",
-          
-          # Auto Scaling permissions
-          "autoscaling:*",
-          
-          # Application Load Balancer permissions
-          "elasticloadbalancing:*",
-          
-          # Route53 permissions (if managing DNS)
-          "route53:*",
-          
-          # CloudWatch permissions
-          "logs:*",
-          "cloudwatch:*",
-          
-          # KMS permissions (for encryption)
-          "kms:*",
-          
-          # SSM permissions (for parameter store)
-          "ssm:*"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
+data "tls_certificate" "eks" {
+  url = aws_eks_cluster.this.identity[0].oidc[0].issuer
 }
-
-# Attach the policy to the role
-resource "aws_iam_role_policy_attachment" "atlantis" {
-  role       = aws_iam_role.atlantis.name
-  policy_arn = aws_iam_policy.atlantis.arn
-}
-
-data "aws_caller_identity" "current" {}
