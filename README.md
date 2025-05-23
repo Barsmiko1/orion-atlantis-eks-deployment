@@ -65,7 +65,6 @@ This deployment creates:
    vim terraform.tfvars
    ```
 
-
 3. Edit the `terraform.tfvars` file to set your GitHub credentials and other variables:
    ```console
    atlantis_github_user = "your-github-username"
