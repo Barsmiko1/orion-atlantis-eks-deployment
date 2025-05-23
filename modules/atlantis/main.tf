@@ -22,9 +22,9 @@ resource "helm_release" "atlantis" {
   repository = "https://runatlantis.github.io/helm-charts"
   chart      = "atlantis"
   namespace  = kubernetes_namespace.atlantis.metadata[0].name
-  timeout    = 900  // 15 minutes
+  timeout    = 900 # 15 minutes timeout for Helm release
   
-  # Use values file for more complex configuration
+
   values = [
     <<-EOT
     orgAllowlist: "${var.atlantis_repo_allowlist}"
@@ -34,7 +34,7 @@ resource "helm_release" "atlantis" {
       secret: "${var.atlantis_webhook_secret}"
     service:
       type: LoadBalancer
-    # Use the correct storage configuration based on values.yaml
+    # Using the storage configuration based on atlantis-values.yaml
     volumeClaim:
       enabled: true
       dataStorage: 8Gi

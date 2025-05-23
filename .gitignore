@@ -9,23 +9,14 @@
 crash.log
 crash.*.log
 
-# Exclude all .tfvars files, which are likely to contain sensitive data
+# Excluding all .tfvars files, which contain sensitive data
 *.tfvars
 *.tfvars.json
 
-# Except example files which can be committed
+# Except test/example files which can be committed
 !terraform.tfvars.example
 !*.example.tfvars
 !*.example.tfvars.json
-
-# Include override files you do wish to add to version control
-# !override.tf
-# !override.tf.json
-# *_override.tf
-# *_override.tf.json
-
-# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
-*tfplan*
 
 # Ignore CLI configuration files
 .terraformrc
@@ -42,12 +33,6 @@ terraform.rc
 # Ignore VSCode specific files
 .vscode/
 *.code-workspace
-
-# Ignore IntelliJ IDEA specific files
-.idea/
-*.iml
-*.iws
-*.ipr
 
 # Ignore environment variables
 .env
@@ -73,5 +58,6 @@ config
 # Ignore temporary files
 *.tmp
 *.bak
+*.backup
 *.swp
 *~

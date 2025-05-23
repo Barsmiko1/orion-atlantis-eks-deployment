@@ -1,9 +1,35 @@
-# orion-atlantis-eks-deployment
-
+## orion-atlantis-eks-deployment-task
+This guide provides step-by-step instructions for deploying Atlantis on AWS EKS using Terraform and Helm. 
+Atlantis is a self-hosted application that automates Terraform pull request workflows, allowing for automated plan and apply operations directly from pull requests.
 
 # Atlantis on AWS EKS
 
 This repository contains Terraform configurations to deploy Atlantis on AWS EKS. Atlantis is a tool for automating Terraform pull request workflows.
+
+## Architecture Overview
+
+The deployment creates the following AWS resources:
+
+1. VPC Infrastructure:
+I.VPC with CIDR block 10.0.0.0/16
+II.private subnets for EKS nodes
+III.public subnets for load balancers
+IV.NAT Gateways for outbound internet access from private subnets
+V.Internet Gateway for public subnet access
+
+2. EKS Cluster:
+I.Kubernetes control plane managed by AWS
+II.Node group with autoscaling (min: 1, max: 2 workers)
+III.t3.medium instances for cost-effectiveness and sufficient performance
+
+3. IAM Roles for RBAC:
+I.eks-admin: Full administrative privileges
+II.eks-readonly: Read-only access
+
+4. Atlantis Deployment:
+I.Deployed via Helm chart
+II.Configured with GitHub integration
+III.Exposed via LoadBalancer service
 
 ## Prerequisites
 
@@ -28,52 +54,69 @@ This deployment creates:
 ## Deployment Steps
 
 1. Clone this repository:
-   \`\`\`
+   ```console
    git clone https://github.com/Barsmiko1/orion-atlantis-eks-deployment.git
    cd orion-atlantis-eks-deployment
-   \`\`\`
 
-2. Create a `terraform.tfvars` file with the desired configuration:
-   \`\`\`
- 
+
+2. Create a `terraform.tfvars` file with the desired configuration that would contain your github credentials and webhook url etc:
+   ```console
+   vim terraform.tfvars
+
 
 3. Edit the `terraform.tfvars` file to set your GitHub credentials and other variables:
-   \`\`\`
+   ```console
    atlantis_github_user = "your-github-username"
    atlantis_github_token = "your-github-token"
    atlantis_repo_allowlist = "github.com/your-username/*"
    atlantis_webhook_secret = "your-webhook-secret"
-   \`\`\`
+   
 
 4. Initialize Terraform:
-   \`\`\`
+   ```console
    terraform init
-   \`\`\`
+   
 
 5. Plan the deployment:
-   \`\`\`
+   ```console
    terraform plan
-   \`\`\`
+   
 
 6. Apply the configuration:
-   \`\`\`
+   ```console
    terraform apply
-   \`\`\`
+   
 
 7. Configure kubectl to connect to your EKS cluster:
-   \`\`\`
+   ```console
    aws eks update-kubeconfig --region us-west-2 --name atlantis-cluster
-   \`\`\`
+   
 
 8. Verify the Atlantis deployment:
-   \`\`\`
+   ```console
    kubectl get pods -n atlantis
-   \`\`\`
+   
 
 9. Get the Atlantis URL:
-   \`\`\`
+   ```console
    terraform output atlantis_url
-   \`\`\`
+
+10. Error management durring pod deployment.
+if you receive an error during the pod creation, describe the pod and know what the error could be, most likely 
+it would be related to the volume configuration from the helm chart.
+```console
+aws eks update-kubeconfig --region us-west-2 --name atlantis-cluster
+kubectl get namespace
+kubectl get pod -n atlantis
+kubectl describe pod atlantis -n atlantis
+kubectl delete pvc --all -n atlantis
+helm uninstall atlantis -n atlantis
+kubectl delete namespace atlantis 
+terraform apply
+helm show values runatlantis/atlantis > atlantis-values.yaml
+cat atlantis-values.yaml
+cat atlantis-values.yaml | grep -A 20 "storage\|persistence\|data"
+   
 
 ## Setting up GitHub Webhook
 
@@ -96,21 +139,26 @@ This deployment creates:
 4. Atlantis should automatically comment on the PR with the plan output
 5. Comment "atlantis apply" to apply the changes
 
-## Cleanup
-
-To destroy all resources created by this configuration:
-
-\`\`\`
-terraform destroy
-\`\`\`
+##webhook error configuration management
+if you get a signature verification failed error, then you would need to check the content of the signature
+compare it with the actual value of the tfvars file against the registered signature on guthub.
+```console
+grep "atlantis_webhook_secret" terraform.tfvars
 
 ## IAM Role Usage
 
 To assume the eks-admin role:
-\`\`\`
+```console
 aws eks update-kubeconfig --region us-west-2 --name atlantis-cluster --role-arn $(terraform output -raw eks_admin_role_arn)
-\`\`\`
+
 
 To assume the eks-readonly role:
-\`\`\`
+```console
 aws eks update-kubeconfig --region us-west-2 --name atlantis-cluster --role-arn $(terraform output -raw eks_readonly_role_arn)
+
+## Cleanup
+
+To destroy all resources created by this configuration:
+
+```console
+terraform destroy
