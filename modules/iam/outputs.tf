@@ -1,14 +1,29 @@
-output "eks_admin_role_arn" {
-  description = "The ARN of the EKS admin role"
-  value       = aws_iam_role.eks_admin.arn
+output "cluster_name" {
+  description = "The name of the EKS cluster"
+  value       = aws_eks_cluster.this.name
 }
 
-output "eks_readonly_role_arn" {
-  description = "The ARN of the EKS read-only role"
-  value       = aws_iam_role.eks_readonly.arn
+output "cluster_endpoint" {
+  description = "The endpoint of the EKS cluster"
+  value       = aws_eks_cluster.this.endpoint
 }
 
-output "atlantis_iam_role_arn" {
-  description = "The ARN of the IAM role for Atlantis"
-  value       = aws_iam_role.atlantis.arn
+output "cluster_certificate_authority_data" {
+  description = "The certificate authority data for the EKS cluster"
+  value       = aws_eks_cluster.this.certificate_authority[0].data
+}
+
+output "cluster_security_group_id" {
+  description = "The security group ID of the EKS cluster"
+  value       = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
+}
+
+output "cluster_oidc_issuer_url" {
+  description = "The URL of the OIDC issuer for the EKS cluster"
+  value       = aws_eks_cluster.this.identity[0].oidc[0].issuer
+}
+
+output "node_role_name" {
+  description = "The name of the IAM role for the EKS node group"
+  value       = aws_iam_role.node.name
 }
