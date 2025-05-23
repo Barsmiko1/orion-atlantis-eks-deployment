@@ -1,4 +1,4 @@
-# orion-atlantis-eks-deployment
+## orion-atlantis-eks-deployment
 
 
 # Atlantis on AWS EKS
@@ -27,8 +27,7 @@ This deployment creates:
 
 ## Deployment Steps
 
-1. Clone this repository:
-   \`\`\`
+1. ```console
    git clone https://github.com/Barsmiko1/orion-atlantis-eks-deployment.git
    cd orion-atlantis-eks-deployment
    \`\`\`
