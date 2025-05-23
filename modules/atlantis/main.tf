@@ -67,7 +67,7 @@ resource "helm_release" "atlantis" {
       repos:
       - id: github.com/Barsmiko1/orion-atlantis-eks-deployment
         workflow: custom
-        allowed_overrides: [workflow, apply_requirements]
+        allowed_overrides: [workflow, apply_requirements, delete_source_branch_on_merge]
         allow_custom_workflows: true
       
       workflows:
