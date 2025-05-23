@@ -30,7 +30,7 @@ This deployment creates:
 1. ```console
    git clone https://github.com/Barsmiko1/orion-atlantis-eks-deployment.git
    cd orion-atlantis-eks-deployment
-   \`\`\`
+   
 
 2. Create a `terraform.tfvars` file with the desired configuration:
    \`\`\`
