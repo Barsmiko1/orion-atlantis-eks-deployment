@@ -22,9 +22,9 @@ resource "helm_release" "atlantis" {
   repository = "https://runatlantis.github.io/helm-charts"
   chart      = "atlantis"
   namespace  = kubernetes_namespace.atlantis.metadata[0].name
-  timeout    = 900 # 15 minutes timeout for Helm release
+  timeout    = 900  # 15 minutes timeout for Helm release
   
-
+  # Using values file for more complex configuration
   values = [
     <<-EOT
     orgAllowlist: "${var.atlantis_repo_allowlist}"
@@ -34,11 +34,19 @@ resource "helm_release" "atlantis" {
       secret: "${var.atlantis_webhook_secret}"
     service:
       type: LoadBalancer
-    # Using the storage configuration based on atlantis-values.yaml
+    # Using the storage configuration based on values.yaml
     volumeClaim:
       enabled: true
       dataStorage: 8Gi
       storageClassName: "ebs-sc"
+    # Configure service account with IAM role annotation
+    serviceAccount:
+      create: true
+      annotations:
+        eks.amazonaws.com/role-arn: "${var.atlantis_iam_role_arn}"
+    # Set AWS region environment variable
+    environment:
+      AWS_REGION: "${var.aws_region}"
     repoConfig: |
       repos:
       - id: /.*/

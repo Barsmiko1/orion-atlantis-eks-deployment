@@ -51,7 +51,8 @@ module "eks" {
 module "iam_roles" {
   source = "./modules/iam"
 
-  cluster_name = var.cluster_name
+  cluster_name             = var.cluster_name
+  cluster_oidc_issuer_url  = module.eks.cluster_oidc_issuer_url
 }
 
 module "atlantis" {
@@ -62,9 +63,12 @@ module "atlantis" {
   atlantis_github_token   = var.atlantis_github_token
   atlantis_repo_allowlist = var.atlantis_repo_allowlist
   atlantis_webhook_secret = var.atlantis_webhook_secret
+  atlantis_iam_role_arn   = module.iam_roles.atlantis_iam_role_arn
+  aws_region              = var.aws_region
   
   depends_on = [
-    kubernetes_storage_class.ebs
+    kubernetes_storage_class.ebs,
+    module.iam_roles
   ]
 }
 
@@ -72,7 +76,6 @@ module "atlantis" {
 resource "aws_eks_addon" "ebs_csi_driver" {
   cluster_name             = module.eks.cluster_name
   addon_name               = "aws-ebs-csi-driver"
-  # Removed the version specification to use the latest compatible version
   service_account_role_arn = aws_iam_role.ebs_csi_driver.arn
   
   depends_on = [

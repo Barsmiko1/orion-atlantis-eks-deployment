@@ -42,3 +42,8 @@ output "atlantis_url" {
   description = "The URL of the Atlantis service"
   value       = module.atlantis.atlantis_url
 }
+
+output "atlantis_iam_role_arn" {
+  description = "The ARN of the IAM role for Atlantis"
+  value       = module.iam_roles.atlantis_iam_role_arn
+}
