@@ -77,14 +77,14 @@ resource "helm_release" "atlantis" {
             - env:
                 name: ATLANTIS_TERRAFORM_VARS
                 command: 'echo "-var atlantis_github_user=$ATLANTIS_GH_USER -var atlantis_github_token=$ATLANTIS_GH_TOKEN -var atlantis_repo_allowlist=$ATLANTIS_REPO_ALLOWLIST -var atlantis_webhook_secret=$ATLANTIS_GH_WEBHOOK_SECRET"'
-            - init
+            - run: terraform init -reconfigure
             - run: terraform plan $ATLANTIS_TERRAFORM_VARS
           apply:
             steps:
             - env:
                 name: ATLANTIS_TERRAFORM_VARS
                 command: 'echo "-var atlantis_github_user=$ATLANTIS_GH_USER -var atlantis_github_token=$ATLANTIS_GH_TOKEN -var atlantis_repo_allowlist=$ATLANTIS_REPO_ALLOWLIST -var atlantis_webhook_secret=$ATLANTIS_GH_WEBHOOK_SECRET"'
-            - init
+            - run: terraform init -reconfigure
             - run: terraform apply $ATLANTIS_TERRAFORM_VARS
     EOT
   ]
