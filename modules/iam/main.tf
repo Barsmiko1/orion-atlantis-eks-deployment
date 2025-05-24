@@ -72,47 +72,8 @@ resource "aws_iam_role_policy" "eks_readonly" {
   })
 }
 
-# COMMENTED OUT - Only the Kubernetes RBAC bindings that need AWS CLI
-# The IAM roles above are kept because they're required infrastructure
-# These can be created manually with kubectl later if needed
-
-# # Create Kubernetes RBAC configuration for the admin role
-# resource "kubernetes_cluster_role_binding" "admin" {
-#   metadata {
-#     name = "eks-admin-binding"
-#   }
-#   
-#   role_ref {
-#     api_group = "rbac.authorization.k8s.io"
-#     kind      = "ClusterRole"
-#     name      = "cluster-admin"
-#   }
-#   
-#   subject {
-#     kind      = "User"
-#     name      = "eks-admin"
-#     api_group = "rbac.authorization.k8s.io"
-#   }
-# }
-
-# # Create Kubernetes RBAC configuration for the read-only role
-# resource "kubernetes_cluster_role_binding" "readonly" {
-#   metadata {
-#     name = "eks-readonly-binding"
-#   }
-#   
-#   role_ref {
-#     api_group = "rbac.authorization.k8s.io"
-#     kind      = "ClusterRole"
-#     name      = "view"
-#   }
-#   
-#   subject {
-#     kind      = "User"
-#     name      = "eks-readonly"
-#     api_group = "rbac.authorization.k8s.io"
-#   }
-# }
+# REMOVED: Kubernetes RBAC bindings that require kubernetes provider
+# These can be created manually with kubectl after the infrastructure is deployed
 
 # IAM role for Atlantis to assume via IRSA
 resource "aws_iam_role" "atlantis" {
@@ -203,4 +164,3 @@ resource "aws_iam_role_policy_attachment" "atlantis" {
 }
 
 data "aws_caller_identity" "current" {}
-

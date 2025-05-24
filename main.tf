@@ -4,34 +4,14 @@ provider "aws" {
 
 provider "tls" {}
 
-provider "kubernetes" {
-  host                   = module.eks.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
-    command     = "aws"
-  }
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = module.eks.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-    exec {
-      api_version = "client.authentication.k8s.io/v1beta1"
-      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
-      command     = "aws"
-    }
-  }
-}
+# Remove the kubernetes and helm providers since they depend on aws CLI
 
 module "vpc" {
   source = "./modules/vpc"
 
-  vpc_name       = var.vpc_name
-  vpc_cidr       = var.vpc_cidr
-  azs            = var.azs
+  vpc_name        = var.vpc_name
+  vpc_cidr        = var.vpc_cidr
+  azs             = var.azs
   private_subnets = var.private_subnets
   public_subnets  = var.public_subnets
 }
@@ -39,37 +19,23 @@ module "vpc" {
 module "eks" {
   source = "./modules/eks"
 
-  cluster_name    = var.cluster_name
-  vpc_id          = module.vpc.vpc_id
-  subnet_ids      = module.vpc.private_subnet_ids
-  min_size        = var.min_size
-  max_size        = var.max_size
-  desired_size    = var.desired_size
-  instance_types  = var.instance_types
+  cluster_name   = var.cluster_name
+  vpc_id         = module.vpc.vpc_id
+  subnet_ids     = module.vpc.private_subnet_ids
+  min_size       = var.min_size
+  max_size       = var.max_size
+  desired_size   = var.desired_size
+  instance_types = var.instance_types
 }
 
 module "iam_roles" {
   source = "./modules/iam"
 
-  cluster_name             = var.cluster_name
-  cluster_oidc_issuer_url  = module.eks.cluster_oidc_issuer_url
-}
-
-module "atlantis" {
-  source = "./modules/atlantis"
-
   cluster_name            = var.cluster_name
-  atlantis_github_user    = var.atlantis_github_user
-  atlantis_github_token   = var.atlantis_github_token
-  atlantis_repo_allowlist = var.atlantis_repo_allowlist
-  atlantis_webhook_secret = var.atlantis_webhook_secret
-  atlantis_iam_role_arn   = module.iam_roles.atlantis_iam_role_arn
-  aws_region              = var.aws_region
-  
-  depends_on = [
-    module.iam_roles
-  ]
+  cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
 }
+
+# Remove the atlantis module since it depends on kubernetes provider
 
 # Install the EBS CSI Driver add-on
 resource "aws_eks_addon" "ebs_csi_driver" {
@@ -113,3 +79,5 @@ resource "aws_iam_role_policy_attachment" "ebs_csi_driver" {
 
 data "aws_caller_identity" "current" {}
 
+# Add a null_resource for testing Atlantis
+resource "null_resource" "example" {}
