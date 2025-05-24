@@ -35,8 +35,6 @@ module "iam_roles" {
   cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
 }
 
-# Remove the atlantis module since it depends on kubernetes provider
-
 # Install the EBS CSI Driver add-on
 resource "aws_eks_addon" "ebs_csi_driver" {
   cluster_name             = module.eks.cluster_name

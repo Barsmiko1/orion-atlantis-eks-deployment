@@ -72,9 +72,6 @@ resource "aws_iam_role_policy" "eks_readonly" {
   })
 }
 
-# REMOVED: Kubernetes RBAC bindings that require kubernetes provider
-# These can be created manually with kubectl after the infrastructure is deployed
-
 # IAM role for Atlantis to assume via IRSA
 resource "aws_iam_role" "atlantis" {
   name = "${var.cluster_name}-atlantis-role"
