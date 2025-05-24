@@ -39,7 +39,7 @@ resource "helm_release" "atlantis" {
     volumeClaim:
       enabled: true
       dataStorage: 8Gi
-      storageClassName: "ebs-sc"
+      storageClassName: "gp2"
     
     serviceAccount:
       create: true
@@ -49,61 +49,6 @@ resource "helm_release" "atlantis" {
     environment:
       ATLANTIS_REPO_ALLOWLIST: "${var.atlantis_repo_allowlist}"
       AWS_REGION: "${var.aws_region}"
-    
-    # Add init container to install tools as root
-    initContainers:
-    - name: install-tools
-      image: alpine:latest
-      securityContext:
-        runAsUser: 0
-        runAsGroup: 0
-      command:
-      - /bin/sh
-      - -c
-      - |
-        set -e
-        echo "Starting tool installation as root..."
-        
-        # Create shared bin directory
-        mkdir -p /shared/bin
-        
-        # Update package index and install dependencies
-        apk update
-        apk add --no-cache curl unzip python3 py3-pip
-        
-        # Install AWS CLI via pip
-        echo "Installing AWS CLI..."
-        pip3 install awscli --break-system-packages
-        cp $(which aws) /shared/bin/aws
-        
-        # Install kubectl
-        echo "Installing kubectl..."
-        curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
-        chmod +x kubectl
-        mv kubectl /shared/bin/kubectl
-        
-        # Make executables
-        chmod +x /shared/bin/aws /shared/bin/kubectl
-        
-        # Verify installations
-        echo "Verifying installations..."
-        /shared/bin/aws --version
-        /shared/bin/kubectl version --client
-        
-        echo "✅ Tools installation completed successfully!"
-      volumeMounts:
-      - name: shared-tools
-        mountPath: /shared
-    
-    # Add shared volume for tools
-    extraVolumes:
-    - name: shared-tools
-      emptyDir: {}
-    
-    extraVolumeMounts:
-    - name: shared-tools
-      mountPath: /atlantis-tools
-      subPath: bin
     
     environmentSecrets:
       - name: ATLANTIS_GH_USER
@@ -124,15 +69,15 @@ resource "helm_release" "atlantis" {
       - id: github.com/Barsmiko1/orion-atlantis-eks-deployment
         apply_requirements: ["approved"]
         allowed_overrides: ["apply_requirements", "workflow"]
-        workflow: secure
+        workflow: simple
       
       workflows:
-        secure:
+        simple:
           plan:
             steps:
             - init
             - run: |
-                # Create terraform.tfvars with secrets from environment and config from repo
+                # Create terraform.tfvars with all variables
                 cat > terraform.tfvars << EOF
                 atlantis_github_user    = "$ATLANTIS_GH_USER"
                 atlantis_github_token   = "$ATLANTIS_GH_TOKEN"
@@ -151,21 +96,13 @@ resource "helm_release" "atlantis" {
                 instance_types          = ["t3.medium"]
                 EOF
                 
-                # Verify tools are available
-                echo "Checking tool availability..."
-                export PATH=$PATH:/atlantis-tools
-                which aws || echo "❌ AWS CLI not found in PATH"
-                which kubectl || echo "❌ kubectl not found in PATH"
-                
-                # Show PATH for debugging
-                echo "Current PATH: $PATH"
-                ls -la /atlantis-tools/ || echo "No /atlantis-tools directory"
+                echo "✅ terraform.tfvars created - ready for plan"
             - plan
           apply:
             steps:
             - init
             - run: |
-                # Create terraform.tfvars with secrets from environment and config from repo
+                # Create terraform.tfvars with all variables
                 cat > terraform.tfvars << EOF
                 atlantis_github_user    = "$ATLANTIS_GH_USER"
                 atlantis_github_token   = "$ATLANTIS_GH_TOKEN"
