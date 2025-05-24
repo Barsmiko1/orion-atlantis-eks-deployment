@@ -4,8 +4,6 @@ provider "aws" {
 
 provider "tls" {}
 
-# Remove the kubernetes and helm providers since they depend on aws CLI
-
 module "vpc" {
   source = "./modules/vpc"
 
@@ -35,7 +33,7 @@ module "iam_roles" {
   cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
 }
 
-# Install the EBS CSI Driver add-on
+# Installing the EBS CSI Driver add-on
 resource "aws_eks_addon" "ebs_csi_driver" {
   cluster_name             = module.eks.cluster_name
   addon_name               = "aws-ebs-csi-driver"
@@ -46,7 +44,7 @@ resource "aws_eks_addon" "ebs_csi_driver" {
   ]
 }
 
-# Create IAM role for EBS CSI Driver
+# Creating IAM role for EBS CSI Driver
 resource "aws_iam_role" "ebs_csi_driver" {
   name = "${var.cluster_name}-ebs-csi-driver"
   
@@ -69,7 +67,7 @@ resource "aws_iam_role" "ebs_csi_driver" {
   })
 }
 
-# Attach the required policy to the IAM role
+# Attaching the required policy to the IAM role
 resource "aws_iam_role_policy_attachment" "ebs_csi_driver" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
   role       = aws_iam_role.ebs_csi_driver.name
@@ -77,5 +75,5 @@ resource "aws_iam_role_policy_attachment" "ebs_csi_driver" {
 
 data "aws_caller_identity" "current" {}
 
-# Add a null_resource for testing Atlantis
+# Adding a null_resource for testing Atlantis
 resource "null_resource" "example" {}
