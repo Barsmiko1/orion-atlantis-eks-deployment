@@ -20,8 +20,6 @@ A comprehensive guide to deploy the Atlantis software on AWS EKS using Terraform
 - [Operations & Maintenance](#operations--maintenance)
 - [Troubleshooting](#troubleshooting)
 - [Security Considerations](#security-considerations)
-- [Cost Optimization](#cost-optimization)
-- [Contributing](#contributing)
 - [References](#references)
 
 ## 🎯 Overview
