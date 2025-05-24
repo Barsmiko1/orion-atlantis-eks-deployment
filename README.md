@@ -1,4 +1,5 @@
   ## Orion Task Atlantis Deployment  on AWS EKS - Deployment Guide
+  ## Author 🚀: John Michael Chukwudi
 
 A comprehensive guide to deploy the Atlantis software on AWS EKS using Terraform and helm for automated infrastructure management through GitHub pull requests.
 
@@ -1292,4 +1293,3 @@ kubectl get service atlantis -n atlantis
 *Remember: Infrastructure as Code + Pull Request Workflows = DevOps Heaven* 
 
 
-## Author 🚀: John Michael Chukwudi
