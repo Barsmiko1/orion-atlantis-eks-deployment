@@ -67,7 +67,6 @@ module "atlantis" {
   aws_region              = var.aws_region
   
   depends_on = [
-    kubernetes_storage_class.ebs,
     module.iam_roles
   ]
 }
@@ -112,42 +111,5 @@ resource "aws_iam_role_policy_attachment" "ebs_csi_driver" {
   role       = aws_iam_role.ebs_csi_driver.name
 }
 
-# Create a Kubernetes storage class for EBS
-resource "kubernetes_storage_class" "ebs" {
-  metadata {
-    name = "ebs-sc"
-  }
-  
-  storage_provisioner = "ebs.csi.aws.com"
-  reclaim_policy      = "Retain"
-  volume_binding_mode = "WaitForFirstConsumer"
-  
-  parameters = {
-    type    = "gp3"
-    fsType  = "ext4"
-  }
-  
-  depends_on = [
-    aws_eks_addon.ebs_csi_driver
-  ]
-}
-
-# Set the storage class as default
-resource "kubernetes_annotations" "ebs_default" {
-  api_version = "storage.k8s.io/v1"
-  kind        = "StorageClass"
-  
-  metadata {
-    name = kubernetes_storage_class.ebs.metadata[0].name
-  }
-  
-  annotations = {
-    "storageclass.kubernetes.io/is-default-class" = "true"
-  }
-  
-  depends_on = [
-    kubernetes_storage_class.ebs
-  ]
-}
-
 data "aws_caller_identity" "current" {}
+

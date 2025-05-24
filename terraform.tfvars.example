@@ -1,3 +1,4 @@
+# Non-sensitive configuration - safe to commit to Git
 aws_region              = "us-west-2"
 vpc_name                = "atlantis-vpc"
 vpc_cidr                = "10.0.0.0/16"
@@ -9,7 +10,3 @@ min_size                = 1
 max_size                = 2
 desired_size            = 1
 instance_types          = ["t3.medium"]
-atlantis_github_user    = "my-github-username"
-atlantis_github_token   = "my-github-token"
-atlantis_repo_allowlist = "github.com/your-username/*"
-atlantis_webhook_secret = "my-webhook-secret"
