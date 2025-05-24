@@ -38,12 +38,48 @@ output "eks_readonly_role_arn" {
   value       = module.iam_roles.eks_readonly_role_arn
 }
 
-output "atlantis_url" {
-  description = "The URL of the Atlantis service"
-  value       = module.atlantis.atlantis_url
-}
-
 output "atlantis_iam_role_arn" {
   description = "The ARN of the IAM role for Atlantis"
   value       = module.iam_roles.atlantis_iam_role_arn
+}
+
+output "atlantis_deployment_commands" {
+  description = "Commands to manually deploy Atlantis after Terraform completes"
+  value = <<-EOT
+# Run these commands after terraform apply completes:
+
+# 1. Update kubeconfig
+aws eks update-kubeconfig --region us-west-2 --name ${module.eks.cluster_name}
+
+# 2. Create namespace
+kubectl create namespace atlantis
+
+# 3. Create GitHub secret (replace values with your actual credentials)
+kubectl create secret generic atlantis-github \
+  --namespace atlantis \
+  --from-literal=ATLANTIS_GH_USER="your-github-username" \
+  --from-literal=ATLANTIS_GH_TOKEN="your-github-token" \
+  --from-literal=ATLANTIS_GH_WEBHOOK_SECRET="your-webhook-secret"
+
+# 4. Add Helm repo
+helm repo add runatlantis https://runatlantis.github.io/helm-charts
+helm repo update
+
+# 5. Deploy Atlantis
+helm install atlantis runatlantis/atlantis \
+  --namespace atlantis \
+  --set orgAllowlist="github.com/Barsmiko1/*" \
+  --set github.user="your-github-username" \
+  --set github.token="your-github-token" \
+  --set github.secret="your-webhook-secret" \
+  --set service.type=LoadBalancer \
+  --set volumeClaim.enabled=true \
+  --set volumeClaim.dataStorage=8Gi \
+  --set volumeClaim.storageClassName=gp2 \
+  --set serviceAccount.create=true \
+  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="${module.iam_roles.atlantis_iam_role_arn}"
+
+# 6. Get Atlantis URL
+kubectl get service atlantis -n atlantis
+  EOT
 }
